@@ -3,6 +3,7 @@ using System.Data.SqlClient;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using EmployeeAPI.Models;
+using EmployeeAPI.Wrappers;
 using Microsoft.Extensions.Logging;
 
 namespace EmployeeAPI.Controllers

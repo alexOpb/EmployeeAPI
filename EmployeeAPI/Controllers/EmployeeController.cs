@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.SqlClient;
+using EmployeeAPI.Filter;
 using EmployeeAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +45,43 @@ namespace EmployeeAPI.Controllers
 
             return new JsonResult(table);
         }
+        
+        [HttpGet("GetPaginatedAllEmployees")]
+        public JsonResult GetAll([FromQuery] PaginationFilter filter)
+        {
+            var validFilter = new PaginationFilter(filter.PageNumber, filter.PageSize);
+
+            var offset = (validFilter.PageNumber - 1) * (validFilter.PageSize);
+            var rows = validFilter.PageSize;
+
+            var query = @"
+
+            select * from dbo.Employees 
+                order by EmployeeId 
+            offset " + offset + @" rows
+                FETCH NEXT " + rows + @" rows only
+                ";
+            
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    ;
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult(table);
+        }
+
         
         [HttpGet("GetEmployeeById/{id}")]
         public JsonResult GetById(long id)
