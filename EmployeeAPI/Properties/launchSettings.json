@@ -9,7 +9,7 @@
     }
   },
   "profiles": {
-    "EmployeeAPI": {
+    "Swagger": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
@@ -29,9 +29,9 @@
     },
     "WebAPI": {
       "commandName": "Project",
-      "launchBrowser": true,
-      "launchUrl": "weatherforecast",
-      "applicationUrl": "https://localhost:7186;http://localhost:5186",
+      "launchBrowser": false,
+      "launchUrl": "api/employee",
+      "applicationUrl": "https://localhost:7186",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
