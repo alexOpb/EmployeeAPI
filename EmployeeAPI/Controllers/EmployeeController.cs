@@ -1,7 +1,10 @@
 using System.Data;
 using System.Data.SqlClient;
 using EmployeeAPI.Filter;
+using EmployeeAPI.Helpers;
 using EmployeeAPI.Models;
+using EmployeeAPI.Services;
+using EmployeeAPI.Wrappers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -14,11 +17,13 @@ namespace EmployeeAPI.Controllers
     {
         private readonly ILogger<EmployeeController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IUriService _uriService;
 
-        public EmployeeController(ILogger<EmployeeController> logger, IConfiguration configuration)
+        public EmployeeController(ILogger<EmployeeController> logger, IConfiguration configuration, IUriService uriService)
         {
             _logger = logger;
             _configuration = configuration;
+            _uriService = uriService;
         }
         
         [HttpGet("GetAllEmployees")]
@@ -47,8 +52,9 @@ namespace EmployeeAPI.Controllers
         }
         
         [HttpGet("GetPaginatedAllEmployees")]
-        public JsonResult GetAll([FromQuery] PaginationFilter filter)
+        public PagedResponse<JsonResult> GetAll([FromQuery] PaginationFilter filter)
         {
+            var route = Request.Path.Value;
             var validFilter = new PaginationFilter(filter.PageNumber, filter.PageSize);
 
             var offset = (validFilter.PageNumber - 1) * (validFilter.PageSize);
@@ -62,6 +68,8 @@ namespace EmployeeAPI.Controllers
                 FETCH NEXT " + rows + @" rows only
                 ";
             
+
+            
             var table = new DataTable();
             var sqlDataSource = _configuration.GetConnectionString("DevConnection");
             SqlDataReader myReader;
@@ -72,14 +80,30 @@ namespace EmployeeAPI.Controllers
                 {
                     myReader = myCommand.ExecuteReader();
                     table.Load(myReader);
-                    ;
 
                     myReader.Close();
                     myCon.Close();
                 }
             }
+            
+            query = @"
+                    SELECT COUNT(*) FROM dbo.Employees
+                ";
+            int totalRecords;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    totalRecords = (int) myCommand.ExecuteScalar();
+                }
+            }
 
-            return new JsonResult(table);
+            var data = new JsonResult(table);
+            
+            var pagedReponse = PaginationHelper.CreatePagedReponse(data, validFilter, totalRecords, _uriService, route);
+
+            return pagedReponse;
         }
 
         
