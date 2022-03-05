@@ -1,30 +1,34 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.SqlClient;
+using EmployeeAPI.Controllers;
+using EmployeeAPI.Filter;
+using EmployeeAPI.Helpers;
+using EmployeeAPI.Models;
+using EmployeeAPI.Services;
+using EmployeeAPI.Wrappers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using EmployeeAPI.Models;
 using Microsoft.Extensions.Logging;
 
-namespace EmployeeAPI.Controllers
+namespace EmployeeAPI.Repositories
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class DepartmentController : ControllerBase
+    public class EmployeeRepository : IEmployeeRepository
     {
+        private readonly ILogger<EmployeeController> _logger;
         private readonly IConfiguration _configuration;
-        private readonly ILogger<DepartmentController> _logger;
-
-        public DepartmentController(ILogger<DepartmentController> logger, IConfiguration configuration)
+        private readonly IUriService _uriService;
+        
+        public EmployeeRepository(ILogger<EmployeeController> logger, IConfiguration configuration, IUriService uriService)
         {
             _logger = logger;
             _configuration = configuration;
+            _uriService = uriService;
         }
         
-        [HttpGet("GetAllDepartments")]
         public JsonResult Get()
         {
             var query = @"
-                    select DepartmentId, DepartmentName from dbo.Departments";
+                    select * from dbo.Employees";
             var table = new DataTable();
             var sqlDataSource = _configuration.GetConnectionString("DevConnection");
             SqlDataReader myReader;
@@ -45,15 +49,65 @@ namespace EmployeeAPI.Controllers
             return new JsonResult(table);
         }
         
-        [HttpGet("GetDepartmentById/{id}")]
+        public PagedResponse<JsonResult> GetAll(PaginationFilter filter, string? route)
+        {
+            var validFilter = new PaginationFilter(filter.PageNumber, filter.PageSize);
+
+            var offset = (validFilter.PageNumber - 1) * (validFilter.PageSize);
+            var rows = validFilter.PageSize;
+
+            var query = @"
+
+            select * from dbo.Employees 
+                order by EmployeeId 
+            offset " + offset + @" rows
+                FETCH NEXT " + rows + @" rows only
+                ";
+            
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+            
+            query = @"
+                    SELECT COUNT(*) FROM dbo.Employees
+                ";
+            int totalRecords;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    totalRecords = (int) myCommand.ExecuteScalar();
+                }
+            }
+
+            var data = new JsonResult(table);
+            
+            var pagedReponse = PaginationHelper.CreatePagedReponse(data, validFilter, totalRecords, _uriService, route);
+
+            return pagedReponse;
+        }
+        
         public JsonResult GetById(long id)
         {
             var query = @"
-                    select * from dbo.Departments
-                    where DepartmentId = " + id + @" 
+                    select * from dbo.Employees
+                    where EmployeeId = " + id + @" 
                     ";
             var table = new DataTable();
-            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            string sqlDataSource = _configuration.GetConnectionString("DevConnection");
             SqlDataReader myReader;
             using (var myCon = new SqlConnection(sqlDataSource))
             {
@@ -71,13 +125,20 @@ namespace EmployeeAPI.Controllers
             return new JsonResult(table);
         }
 
-        [HttpPost("AddDepartment")]
-        public JsonResult Post(Department dep)
+        public JsonResult Post(Employee emp)
         {
             var query = @"
-                    insert into dbo.Departments values 
-                    ('" + dep.DepartmentName + @"')
-                    ";
+                        insert into dbo.Employees 
+                        (Name,DepartmentId,Title,ReportsTo,HireDate)
+                        values 
+                        (
+                        '" + emp.Name + @"'
+                        ,'" + emp.DepartmentId + @"'
+                        ,'" + emp.Title + @"'
+                        ,'" + emp.ReportsTo + @"'
+                        ,'" + emp.HireDate + @"'
+                        )
+                        ";
             var table = new DataTable();
             var sqlDataSource = _configuration.GetConnectionString("DevConnection");
             SqlDataReader myReader;
@@ -98,14 +159,18 @@ namespace EmployeeAPI.Controllers
             return new JsonResult("Added Successfully");
         }
         
-        [HttpPut("UpdateDepartment")]
-        public JsonResult Put(Department dep)
+        public JsonResult Put(Employee emp)
         {
             var query = @"
-                    update dbo.Departments set 
-                    DepartmentName = '" + dep.DepartmentName + @"'
-                    where DepartmentId = " + dep.DepartmentId + @" 
-                    ";
+                        update dbo.Employees set
+                        Name = '" + emp.Name + @"'
+                        ,DepartmentId = '" + emp.DepartmentId + @"'
+                        ,Title = '" + emp.Title + @"'
+                        ,ReportsTo = '" + emp.ReportsTo + @"'
+                        ,HireDate = '" + emp.HireDate + @"'
+                         where EmployeeId = " + emp.EmployeeId + @"
+                        ";
+
             var table = new DataTable();
             var sqlDataSource = _configuration.GetConnectionString("DevConnection");
             SqlDataReader myReader;
@@ -126,12 +191,11 @@ namespace EmployeeAPI.Controllers
             return new JsonResult("Updated Successfully");
         }
         
-        [HttpDelete("DeleteDepartment/{id}")]
         public JsonResult Delete(long id)
         {
             var query = @"
-                    delete from dbo.Departments
-                    where DepartmentId = " + id + @" 
+                    delete from dbo.Employees
+                    where EmployeeId = " + id + @" 
                     ";
             var table = new DataTable();
             var sqlDataSource = _configuration.GetConnectionString("DevConnection");
@@ -139,7 +203,7 @@ namespace EmployeeAPI.Controllers
             using (var myCon = new SqlConnection(sqlDataSource))
             {
                 myCon.Open();
-                using (var myCommand = new SqlCommand(query, myCon))
+                using (SqlCommand myCommand = new SqlCommand(query, myCon))
                 {
                     myReader = myCommand.ExecuteReader();
                     table.Load(myReader);
