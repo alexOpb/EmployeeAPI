@@ -1,9 +1,7 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
 using EmployeeAPI.Controllers;
-using EmployeeAPI.Filter;
 using EmployeeAPI.Models;
-using EmployeeAPI.Wrappers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -14,37 +12,139 @@ namespace EmployeeAPI.Repositories
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<DepartmentController> _logger;
-        private readonly IDepartmentRepository _departmentRepository;
 
-        public DepartmentRepository(ILogger<DepartmentController> logger, IDepartmentRepository departmentRepository)
+        public DepartmentRepository(ILogger<DepartmentController> logger, IConfiguration configuration)
         {
             _logger = logger;
-            _departmentRepository = departmentRepository;
+            _configuration = configuration;
         }
         
         public JsonResult Get()
         {
-            return _departmentRepository.Get();
+            var query = @"
+                    select DepartmentId, DepartmentName from dbo.Departments";
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    ;
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult(table);
         }
         
         public JsonResult GetById(long id)
         {
-            return _departmentRepository.GetById(id);
+            var query = @"
+                    select * from dbo.Departments
+                    where DepartmentId = " + id + @" 
+                    ";
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    ;
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+            return new JsonResult(table);
         }
 
         public JsonResult Post(Department dep)
         {
-            return _departmentRepository.Post(dep);
+            var query = @"
+                    insert into dbo.Departments values 
+                    ('" + dep.DepartmentName + @"')
+                    ";
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    ;
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult("Added Successfully");
         }
         
         public JsonResult Put(Department dep)
         {
-            return _departmentRepository.Put(dep);
+            var query = @"
+                    update dbo.Departments set 
+                    DepartmentName = '" + dep.DepartmentName + @"'
+                    where DepartmentId = " + dep.DepartmentId + @" 
+                    ";
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    ;
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult("Updated Successfully");
         }
         
         public JsonResult Delete(long id)
         {
-            return _departmentRepository.Delete(id);
+            var query = @"
+                    delete from dbo.Departments
+                    where DepartmentId = " + id + @" 
+                    ";
+            var table = new DataTable();
+            var sqlDataSource = _configuration.GetConnectionString("DevConnection");
+            SqlDataReader myReader;
+            using (var myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (var myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    ;
+
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult("Deleted Successfully");
         }
     }
 }

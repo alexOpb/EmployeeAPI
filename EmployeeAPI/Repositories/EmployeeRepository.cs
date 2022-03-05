@@ -45,7 +45,6 @@ namespace EmployeeAPI.Repositories
                     myCon.Close();
                 }
             }
-
             return new JsonResult(table);
         }
         

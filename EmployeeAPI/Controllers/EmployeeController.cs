@@ -37,7 +37,7 @@ namespace EmployeeAPI.Controllers
             return _employeeRepository.GetAll(filter, route);
         }
         
-        [HttpGet("GetEmployeeById/{id}")]
+        [HttpGet("GetEmployee/{id}")]
         public JsonResult GetById(long id)
         {
             return _employeeRepository.GetById(id);
